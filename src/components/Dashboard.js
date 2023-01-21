@@ -1,35 +1,46 @@
 import React, { Component } from "react";
-import Loading from "./Loading";
+import axios from "axios";
 import classnames from "classnames";
+
+import Loading from "./Loading";
 import Panel from "./Panel";
 
-const data = [
+import {
+  getTotalInterviews,
+  getLeastPopularTimeSlot,
+  getMostPopularDay,
+  getInterviewsPerDay
+ } from "helpers/selectors";
+
+ const data = [
   {
     id: 1,
     label: "Total Interviews",
-    value: 6
+    getValue: getTotalInterviews
   },
   {
     id: 2,
     label: "Least Popular Time Slot",
-    value: "1pm"
+    getValue: getLeastPopularTimeSlot
   },
   {
     id: 3,
     label: "Most Popular Day",
-    value: "Wednesday"
+    getValue: getMostPopularDay
   },
   {
     id: 4,
     label: "Interviews Per Day",
-    value: "2.3"
+    getValue: getInterviewsPerDay
   }
 ];
 
 class Dashboard extends Component {
   state = {
-    loading: false,
-    focused: null
+    loading: true,
+    focused: null,
+    appointments: {},
+    interviewers: {}
   };
 
   // Dashboard(props) {
@@ -42,7 +53,21 @@ class Dashboard extends Component {
     if (focused) {
       this.setState({ focused });
     }
+    Promise.all([
+      axios.get("/api/days"),
+      axios.get("/api/appointments"),
+      axios.get("/api/interviewers")
+    ]).then(([days, appointments, interviewers]) => {
+      this.setState({
+        loading: false,
+        days: days.data,
+        appointments: appointments.data,
+        interviewers: interviewers.data
+      });
+    });
   }
+
+
 
   componentDidUpdate(previousProps, previousState) {
     if (previousState.focused !== this.state.focused) {
@@ -55,10 +80,9 @@ class Dashboard extends Component {
         focused: previousState.focused !== null ? null : id
       }));
     }
-
-
   
   render() {
+    //console.log(this.state)
     const dashboardClasses = classnames("dashboard", {
       "dashboard--focused": this.state.focused
      });
@@ -66,15 +90,15 @@ class Dashboard extends Component {
     if (this.state.loading) {
       return <Loading />;
     }
+  
 
     const panels =  (this.state.focused ? data.filter(panel => this.state.focused === panel.id) : data).map(panel => (
-      <Panel
-        key={panel.id}
-        id={panel.id}
-        label={panel.label}
-        value={panel.value}
-        onSelect={event => this.selectPanel(panel.id)}
-      />
+    <Panel
+    key={panel.id}
+    label={panel.label}
+    value={panel.getValue(this.state)}
+    onSelect={() => this.selectPanel(panel.id)}
+    />
     ));
 
     return <main className={dashboardClasses}>{panels}</main>;
